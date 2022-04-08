@@ -1,0 +1,142 @@
+default: &default
+  data_path: dataset
+  batch_size: 64
+  isShuffled: False
+  class_num: 10
+  learning_rate: 0.01
+  momentum: 0.9
+  step_size: 0.1
+  gamma: 0.1
+  epochs: 100
+  # criterion: CrossEntropyLoss
+  criterion: TripletLoss
+
+  time_elapsed: 0m 0s
+  image_size: 224
+  seed: 1
+  fine_tune: -1
+  weight_decay: 0.0001
+  label: combination
+  num_works: 0
+  device: cpu
+  mixup: false
+  save_model: false
+  cuda: 0
+
+cnn: &cnn
+  name: resnet18
+
+rnn: &rnn
+  name: LSTM
+
+TripletLoss:
+  margin: 0.3
+  embedding_size: 256
+
+criterion: &criterion
+  name: effective_number
+  gamma: .999
+  base: focal_loss
+  base_gamma: 1
+
+#criterion: &criterion
+#  name: focal_loss
+#  gamma: 1.0
+
+focal_loss: &focal_loss
+  name: focal_loss
+  gamma: 1.0
+
+scheduler: &scheduler
+  name: CosineWarmUp
+  warm_up_epochs: 10
+
+pretrained_model: &pretrained_model
+  cnn: false
+  rnn: false
+
+experiments:
+  - env: 0601
+    epochs: 200
+    log: test.log
+    log_dir: E:/CLASSES/毕设/资料/项目代码/src/LT/test
+
+    test_few_class_mixup: false
+    bbn: false
+    #    seed: 2
+    seed: 1
+    #    new_label: true
+    new_label: false
+    num_works: 0
+    batch_size: 4
+    batch_iter: 16
+    total_step: 3000
+    #    total_step: 6000
+    evaluation_every: 10
+#    dataset_name: hdf5
+    dataset_name: image_folder
+    cuda: 0
+    profiler: false
+    mixed_precision: false
+    #    mixup: true
+    mixup: false
+    remixup: false
+    remixup_k: 10
+    remixup_tau: .5
+    few_class_mixup: false
+    mixup_alpha: .2
+    mixup_scheduler: false
+    mixup_scheduler_list:
+      - mixup
+      - few_class_mixup
+      - no_mixup
+    mixup_scheduler_epoch:
+      - 0
+      - 1000
+      - 5000
+    augmentation_size: 1.
+    # only CBCE
+    class_balanced_based_on_effective_number: false
+    class_balanced_based_on_effective_number_beta: .9
+    #    criterion: LDAMLoss
+    LDAM_max_margin: 1
+    criterion: CrossEntropyLoss
+#    criterion: FocalLoss
+    #    criterion: LogitAdjustmentLoss
+    logit_adjustment_tro: .5
+    focal_loss_gamma: 1
+    #    criterion: AdaptiveFocalLoss
+    bayesian_optimization: false
+    #    criterion: CostSensitiveCrossEntropyLoss
+    lr: 0.00033
+    lr_search: false
+    parameter_study: true
+    #    parameter_study_name: parameter_study
+    output_save: true
+    network_save: false
+    debug: false
+    GAN_supplement: false
+    GAN_supplement_label:
+      - 3
+      - 4
+      - 7
+      - 8
+      - 10
+    GAN_supplement_num:
+#      - 30
+#      - 70
+#      - 40
+#      - 70
+#      - 30
+      - 15
+      - 35
+      - 20
+      - 35
+      - 15
+    GAN_supplement_dir:
+      - /home/data/LT_GAN/GAN_img/label_3/2021-10-15-(10-43-55)
+      - /home/data/LT_GAN/GAN_img/label_4/2021-10-14-(13-00-17)
+      - /home/data/LT_GAN/GAN_img/label_7/2021-10-21-(14-38-13)
+      - /home/data/LT_GAN/GAN_img/label_8/2021-10-14-(13-08-44)
+      - /home/data/LT_GAN/GAN_img/label_10/2021-10-21-(14-42-24)
+    <<: *default
