@@ -42,20 +42,20 @@ test_size = len(cifar_test)
 net = models.resnet34(pretrained=True)
 num_ftrs = net.fc.in_features
 
-
+criterion = nn.CrossEntropyLoss()
 # net = ResNet.ResNet()
 if params['criterion'] == 'CrossEntropyLoss':
     net.fc = nn.Linear(num_ftrs, params['class_num'])
-    criterion = nn.CrossEntropyLoss()
+    # criterion = nn.CrossEntropyLoss()
 elif params['criterion'] == 'TripletLoss':
     # criterion = TripletLoss.TripletLoss(margin=triplet_margin)
     net.fc = nn.Linear(num_ftrs, params['embedding_size'])
     net.classifier = nn.Linear(params['embedding_size'], params['class_num'])
-    criterion = nn.TripletMarginLoss(margin=params['triplet_margin'], p=2)
+    criterion_triplet = nn.TripletMarginLoss(margin=params['triplet_margin'], p=2)
     # criterion = TripletLoss(params['triplet_margin'])
 else:
     net.fc.classifier = nn.Linear(num_ftrs, params['class_num'])
-    criterion = nn.CrossEntropyLoss()
+
 
 if torch.cuda.is_available():
     net = net.cuda()
@@ -100,11 +100,13 @@ def train_model(model, optimizer, scheduler, num_epochs=1):
                 a_out = model(a_in)
                 p_out = model(p_in)
                 n_out = model(n_in)
-                loss = criterion(a_out,p_out,n_out)
+                # loss = criterion_triplet(a_out,p_out,n_out)
                 # loss = criterion.forward(outputs, labels)
 
-                a_pred = model.classifier(a_out)
-                _, preds = torch.max(a_pred, 1)
+                outputs = model.classifier(a_out)
+                # loss = CE + Triplet
+                loss = criterion(outputs, labels) + criterion_triplet(a_out,p_out,n_out)
+                _, preds = torch.max(outputs, 1)
             else:
                 inputs, labels = data
                 inputs, labels = Variable(inputs), Variable(labels)
@@ -141,9 +143,15 @@ def train_model(model, optimizer, scheduler, num_epochs=1):
                 inputs, labels = Variable(inputs), Variable(labels)
                 if torch.cuda.is_available():
                     inputs, labels = inputs.cuda(), labels.cuda()
-
                 outputs = model(inputs)
-                _, preds = torch.max(outputs.data, 1)
+                if params['criterion'] == 'CrossEntropyLoss':
+                    _, preds = torch.max(outputs.data, 1)
+                elif params['criterion'] == 'TripletLoss':
+                    a_pred = model.classifier(outputs)
+                    _, preds = torch.max(a_pred, 1)
+                else:
+                    _, preds = torch.max(outputs.data, 1)
+
                 correct += preds.eq(labels.data).sum()
 
             print('{} Test Acc:{:.4f}'.format(epoch, correct / test_size))
