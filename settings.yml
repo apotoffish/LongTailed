@@ -7,7 +7,7 @@ default: &default
   momentum: 0.9
   step_size: 0.1
   gamma: 0.1
-  epochs: 100
+  epochs: 200
   # criterion: CrossEntropyLoss
   criterion: TripletLoss
 

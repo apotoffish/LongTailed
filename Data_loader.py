@@ -100,12 +100,13 @@ def train_model(model, optimizer, scheduler, num_epochs=1):
                 a_out = model(a_in)
                 p_out = model(p_in)
                 n_out = model(n_in)
-                # loss = criterion_triplet(a_out,p_out,n_out)
+                losst = criterion_triplet(a_out,p_out,n_out)
                 # loss = criterion.forward(outputs, labels)
 
                 outputs = model.classifier(a_out)
                 # loss = CE + Triplet
-                loss = criterion(outputs, labels) + criterion_triplet(a_out,p_out,n_out)
+                lossc = criterion(outputs, labels)
+                loss = losst + lossc
                 _, preds = torch.max(outputs, 1)
             else:
                 inputs, labels = data
