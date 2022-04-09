@@ -19,12 +19,12 @@ class Writer:
         infile.write("\n\ntrain accuracy:")
         for train_acc in train_accuracy:
             infile.write("\n")
-            infile.write(str(train_acc))
+            infile.write(str(train_acc.item()))
 
         infile.write("\n\ntest accuracy:")
         for test_acc in test_accuracy:
             infile.write("\n")
-            infile.write(str(test_acc))
+            infile.write(str(test_acc.item()))
 
         infile.write("\n\nloss:")
         for loss in losses:
