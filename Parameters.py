@@ -27,6 +27,8 @@ class Parameters:
             self.params['criterion'] = y['default']['criterion']
             self.params['triplet_margin'] = y['TripletLoss']['margin']
             self.params['embedding_size'] = y['TripletLoss']['embedding_size']
-        elif y['default']['criterion'] == 'NPairLoss':
+        elif y['default']['criterion'] == 'NpairLoss':
             self.params['criterion'] = y['default']['criterion']
+            self.params['l2_regression'] = y['NpairLoss']['l2_regression']
+            self.params['embedding_size'] = y['NpairLoss']['embedding_size']
             #self.params['triplet_margin'] = y['TripletLoss']['margin']

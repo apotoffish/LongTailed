@@ -12,7 +12,9 @@ import torch.optim as optim
 # import LeNet
 # import ResNet
 from dataset.TripletDataset import TripletDataset
+from dataset.NpairDataset import NpairDataset
 from loss.TripletLoss import TripletLoss
+from loss.NpairLoss import NpairLoss
 from Parameters import Parameters
 from Writer import Writer
 
@@ -30,6 +32,8 @@ if params['criterion'] == 'CrossEntropyLoss':
     cifar_train = torchvision.datasets.CIFAR10(root=params['data_path'], train=True, transform=transform)
 elif params['criterion'] == 'TripletLoss':
     cifar_train = TripletDataset(params['data_path'], transform)
+elif params['criterion'] == 'NpairLoss':
+    cifar_train = NpairDataset(params['data_path'], transform)
 
 trainloader = torch.utils.data.DataLoader(cifar_train, batch_size=params['batch_size'], shuffle=params['isShuffled'])
 testloader = torch.utils.data.DataLoader(cifar_test, batch_size=params['batch_size'], shuffle=params['isShuffled'])
@@ -53,8 +57,10 @@ elif params['criterion'] == 'TripletLoss':
     net.classifier = nn.Linear(params['embedding_size'], params['class_num'])
     criterion_triplet = nn.TripletMarginLoss(margin=params['triplet_margin'], p=2)
     # criterion = TripletLoss(params['triplet_margin'])
-else:
-    net.fc.classifier = nn.Linear(num_ftrs, params['class_num'])
+elif params['criterion'] == 'NpairLoss':
+    net.fc = nn.Linear(num_ftrs, params['embedding_size'])
+    net.classifier = nn.Linear(params['embedding_size'], params['class_num'])
+    criterion_npair = NpairLoss(l2_reg=params['l2_regression'])
 
 
 if torch.cuda.is_available():
@@ -90,7 +96,6 @@ def train_model(model, optimizer, scheduler, num_epochs=1):
                     inputs, labels = inputs.cuda(), labels.cuda()
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
-                _, preds = torch.max(outputs.data, 1)
             elif params['criterion'] == 'TripletLoss':
                 a_in,p_in,n_in,labels,n_labels = data
                 a_in, p_in, n_in, labels, n_labels = Variable(a_in), Variable(p_in),Variable(n_in),Variable(labels),Variable(n_labels)
@@ -107,7 +112,17 @@ def train_model(model, optimizer, scheduler, num_epochs=1):
                 # loss = CE + Triplet
                 lossc = criterion(outputs, labels)
                 loss = losst + lossc
-                _, preds = torch.max(outputs, 1)
+            elif params['criterion'] == 'NpairLoss':
+                a_in, p_in, labels = data
+                a_in, p_in, labels = Variable(a_in), Variable(p_in), Variable(labels)
+                if torch.cuda.is_available():
+                    a_in, p_in, labels = a_in.cuda(), p_in.cuda(), labels.cuda()
+                a_out = model(a_in)
+                p_out = model(p_in)
+                outputs = model.classifier(a_out)
+                lossn = criterion_npair(a_out, p_out, labels)
+                lossc = criterion(outputs,labels)
+                loss = lossn + lossc
             else:
                 inputs, labels = data
                 inputs, labels = Variable(inputs), Variable(labels)
@@ -115,9 +130,8 @@ def train_model(model, optimizer, scheduler, num_epochs=1):
                     inputs, labels = inputs.cuda(), labels.cuda()
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
-                _, preds = torch.max(outputs.data, 1)
 
-            # _, preds = torch.max(outputs.data, 1)  # ？
+            _, preds = torch.max(outputs.data, 1)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()

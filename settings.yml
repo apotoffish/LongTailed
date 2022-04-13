@@ -9,7 +9,8 @@ default: &default
   gamma: 0.1
   epochs: 200
   # criterion: CrossEntropyLoss
-  criterion: TripletLoss
+  # criterion: TripletLoss
+  criterion: NpairLoss
 
   time_elapsed: 0m 0s
   image_size: 224
@@ -23,14 +24,12 @@ default: &default
   save_model: false
   cuda: 0
 
-cnn: &cnn
-  name: resnet18
-
-rnn: &rnn
-  name: LSTM
-
 TripletLoss:
   margin: 0.3
+  embedding_size: 256
+
+NpairLoss:
+  l2_regression: 0.02
   embedding_size: 256
 
 criterion: &criterion
