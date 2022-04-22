@@ -1,5 +1,7 @@
 default: &default
+  dataset: cifar-10
   data_path: dataset
+  long_tailed: True
   batch_size: 64
   isShuffled: False
   class_num: 10

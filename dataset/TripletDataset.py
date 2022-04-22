@@ -10,25 +10,24 @@ from tqdm import tqdm
 
 class TripletDataset:
 
-    def __init__(self, path, transform):
+    def __init__(self, dataset, transform):
         # super(TripletDataset, self).__init__(path, transform)
 
-        self.path = path
         self.transform = transform
-        # self.length = len(data_set)
 
-        self.data_set,self.length = self.get_dataset()
+        self.data_set = dataset
+        self.length = len(dataset.targets)
         print('Generating {} triplets'.format(self.length))
         self.classes = len(self.data_set.classes)
         # 这里生成三元组，cifar_set为数据集，imgs里的子文件夹分别包含各自类别的图片，子文件夹数量为类比数
-        self.train_triplets = self.generate_triplets(self.data_set, self.length, self.classes)
+        self.train_triplets = self.generate_triplets(self.data_set, self.length)
 
-    def get_dataset(self):
-        data_train = torchvision.datasets.CIFAR10(root=self.path, train=True, transform=self.transform)
+    def get_dataset(self, path):
+        data_train = torchvision.datasets.CIFAR10(root=path, train=True, transform=self.transform)
         return data_train,len(data_train)
 
     @staticmethod
-    def generate_triplets(data_set, length, n_classes):
+    def generate_triplets(data_set, length):
         triplets = []
 
         for x in tqdm(range(length)):

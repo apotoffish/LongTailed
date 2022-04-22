@@ -1,4 +1,5 @@
 import time
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -27,13 +28,59 @@ transform = transforms.Compose(
      transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))]
 )
 
+
+class Dataset:
+    def __init__(self, params, train, transform):
+        self.params = params
+        self.train = train
+        self.transform = transform
+
+        if self.params['dataset'] == 'cifar-10':
+            self.dataset = torchvision.datasets.CIFAR10(root=params['data_path'], train=self.train,
+                                                        transform=transform)
+            if self.train:
+                if self.params['long_tailed']:
+                    self.dataset = self.LongTailed()
+                if params['criterion'] == 'TripletLoss':
+                    self.dataset = TripletDataset(self.dataset, transform)
+                elif params['criterion'] == 'NpairLoss':
+                    self.dataset = NpairDataset(self.dataset, transform)
+        elif self.params['dataset'] == 'my-image':
+            # 暂时
+            self.dataset = torchvision.datasets.CIFAR10(root=self.params['data_path'], train=self.train,
+                                                        transform=self.transform)
+            if self.train:
+                if params['criterion'] == 'TripletLoss':
+                    self.dataset = TripletDataset(self.dataset, transform)
+                elif params['criterion'] == 'NpairLoss':
+                    self.dataset = NpairDataset(self.dataset, transform)
+
+    def LongTailed(self):
+        # 这里将cifar数据集长尾化处理，暂时按照线性分布处理，之后具体实现不同分布的处理
+        dataset = self.dataset
+        class_num = self.params['class_num']
+        # dataset.data: ndarray
+        # dataset.targets: list
+        # 10是 不平衡比率imbalance ratio
+        reserved = np.rint(
+            np.linspace(len(dataset.data) / (class_num * 10), len(dataset.data) / class_num, class_num)).astype(int)
+        reserved = len(dataset.data) / class_num - reserved
+        remove = []
+        for i in range(len(dataset.targets)):
+            if reserved[dataset.targets[i]] != 0:
+                remove.append(i)
+                reserved[dataset.targets[i]] -= 1
+        dataset.data = np.delete(dataset.data, remove, axis=0)
+        for counter, index in enumerate(remove):
+            index = index - counter
+            dataset.targets.pop(index)
+        return dataset
+
+
+# train: read data ->
+train = Dataset(params, True, transform)
+cifar_train = train.dataset
 cifar_test = torchvision.datasets.CIFAR10(root=params['data_path'], train=False, transform=transform)
-if params['criterion'] == 'CrossEntropyLoss':
-    cifar_train = torchvision.datasets.CIFAR10(root=params['data_path'], train=True, transform=transform)
-elif params['criterion'] == 'TripletLoss':
-    cifar_train = TripletDataset(params['data_path'], transform)
-elif params['criterion'] == 'NpairLoss':
-    cifar_train = NpairDataset(params['data_path'], transform)
 
 trainloader = torch.utils.data.DataLoader(cifar_train, batch_size=params['batch_size'], shuffle=params['isShuffled'])
 testloader = torch.utils.data.DataLoader(cifar_test, batch_size=params['batch_size'], shuffle=params['isShuffled'])
@@ -41,7 +88,6 @@ dataloader = [trainloader, testloader]
 
 train_size = len(cifar_train)
 test_size = len(cifar_test)
-
 
 net = models.resnet34(pretrained=True)
 num_ftrs = net.fc.in_features
@@ -61,7 +107,6 @@ elif params['criterion'] == 'NpairLoss':
     net.fc = nn.Linear(num_ftrs, params['embedding_size'])
     net.classifier = nn.Linear(params['embedding_size'], params['class_num'])
     criterion_npair = NpairLoss(l2_reg=params['l2_regression'])
-
 
 if torch.cuda.is_available():
     net = net.cuda()
@@ -97,15 +142,16 @@ def train_model(model, optimizer, scheduler, num_epochs=1):
                 outputs = model(inputs)
                 loss = criterion(outputs, labels)
             elif params['criterion'] == 'TripletLoss':
-                a_in,p_in,n_in,labels,n_labels = data
-                a_in, p_in, n_in, labels, n_labels = Variable(a_in), Variable(p_in),Variable(n_in),Variable(labels),Variable(n_labels)
+                a_in, p_in, n_in, labels, n_labels = data
+                a_in, p_in, n_in, labels, n_labels = Variable(a_in), Variable(p_in), Variable(n_in), Variable(
+                    labels), Variable(n_labels)
                 if torch.cuda.is_available():
                     a_in, p_in, n_in, labels, n_labels = a_in.cuda(), p_in.cuda(), n_in.cuda(), labels.cuda(), n_labels.cuda()
 
                 a_out = model(a_in)
                 p_out = model(p_in)
                 n_out = model(n_in)
-                losst = criterion_triplet(a_out,p_out,n_out)
+                losst = criterion_triplet(a_out, p_out, n_out)
                 # loss = criterion.forward(outputs, labels)
 
                 outputs = model.classifier(a_out)
@@ -121,7 +167,7 @@ def train_model(model, optimizer, scheduler, num_epochs=1):
                 p_out = model(p_in)
                 outputs = model.classifier(a_out)
                 lossn = criterion_npair(a_out, p_out, labels)
-                lossc = criterion(outputs,labels)
+                lossc = criterion(outputs, labels)
                 loss = lossn + lossc
             else:
                 inputs, labels = data
@@ -164,7 +210,8 @@ def train_model(model, optimizer, scheduler, num_epochs=1):
                 elif params['criterion'] == 'TripletLoss':
                     a_pred = model.classifier(outputs)
                     _, preds = torch.max(a_pred, 1)
-                else:
+                elif params['criterion'] == 'NpairLoss':
+                    outputs = model.classifier(outputs)
                     _, preds = torch.max(outputs.data, 1)
 
                 correct += preds.eq(labels.data).sum()
@@ -184,7 +231,7 @@ def train_model(model, optimizer, scheduler, num_epochs=1):
     writer.write(params, train_acc, test_acc, losses)
     model.load_state_dict(best_model_wts)
     t = time.strftime("%Y-%m-%d %H-%M-%S", time.localtime())
-    torch.save(best_model_wts, 'log/'+t+'.pth')
+    torch.save(best_model_wts, 'log/' + t + '.pth')
     return model
 
 

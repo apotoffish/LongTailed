@@ -10,7 +10,9 @@ class Parameters:
         with open(self.__path, 'rb') as f:
             y = yaml.safe_load(f)
 
+        self.params['dataset'] = y['default']['dataset']
         self.params['data_path'] = y['default']['data_path']
+        self.params['long_tailed'] = y['default']['long_tailed']
         self.params['batch_size'] = y['default']['batch_size']
         self.params['isShuffled'] = y['default']['isShuffled']
         self.params['class_num'] = y['default']['class_num']
