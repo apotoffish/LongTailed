@@ -62,8 +62,13 @@ class Dataset:
         # dataset.data: ndarray
         # dataset.targets: list
         # 10是 不平衡比率imbalance ratio
+        '''
         reserved = np.rint(
             np.linspace(len(dataset.data) / (class_num * 10), len(dataset.data) / class_num, class_num)).astype(int)
+        '''
+        reserved = np.zeros([class_num, 1],dtype=int)
+        reserved[0:int(class_num * 0.5)] = len(dataset.data) / (class_num * 10)
+        reserved[int(class_num * 0.5):class_num] = len(dataset.data) / class_num
         reserved = len(dataset.data) / class_num - reserved
         remove = []
         for i in range(len(dataset.targets)):
