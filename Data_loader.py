@@ -38,13 +38,12 @@ class Dataset:
         if self.params['dataset'] == 'cifar-10':
             self.dataset = torchvision.datasets.CIFAR10(root=params['data_path'], train=self.train,
                                                         transform=transform)
-            if self.train:
-                if self.params['long_tailed']:
-                    self.dataset = self.LongTailed()
-                if params['criterion'] == 'TripletLoss':
-                    self.dataset = TripletDataset(self.dataset, transform)
-                elif params['criterion'] == 'NpairLoss':
-                    self.dataset = NpairDataset(self.dataset, transform)
+            if self.params['long_tailed']:
+                self.dataset = self.LongTailed()
+            if params['criterion'] == 'TripletLoss':
+                self.dataset = TripletDataset(self.dataset, transform)
+            elif params['criterion'] == 'NpairLoss':
+                self.dataset = NpairDataset(self.dataset, transform)
         elif self.params['dataset'] == 'my-image':
             # 暂时
             self.dataset = torchvision.datasets.CIFAR10(root=self.params['data_path'], train=self.train,
@@ -84,8 +83,10 @@ class Dataset:
 
 # train: read data ->
 train = Dataset(params, True, transform)
+test = Dataset(params, False, transform)
 cifar_train = train.dataset
-cifar_test = torchvision.datasets.CIFAR10(root=params['data_path'], train=False, transform=transform)
+cifar_test = test.dataset
+# torchvision.datasets.CIFAR10(root=params['data_path'], train=False, transform=transform)
 
 trainloader = torch.utils.data.DataLoader(cifar_train, batch_size=params['batch_size'], shuffle=params['isShuffled'])
 testloader = torch.utils.data.DataLoader(cifar_test, batch_size=params['batch_size'], shuffle=params['isShuffled'])
